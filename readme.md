@@ -1,17 +1,26 @@
 # Animation GenAI 🎬✨
 
-A powerful AI-driven tool that generates educational animations using Google's Gemini AI and the Manim library. Create beautiful mathematical and educational animations in the style of 3Blue1Brown by simply describing what you want to animate!
+A powerful AI-driven tool that generates educational animations using Google's newest Gemini 3.0 AI model and the Manim library. Create beautiful mathematical and educational animations in the style of 3Blue1Brown by simply describing what you want to animate!
+
 Live link :- https://animation-genai.streamlit.app/
 
 ## 🚀 Features
 
-- **🤖 Advanced AI Generation**: Uses Google Gemini 2.5 Pro with enhanced system prompts for highly accurate animation code
+- **🤖 Latest Gemini 3.0 API**: Powered by Google's cutting-edge Gemini 3.0 Flash with advanced thinking capabilities
+- **🧠 Advanced Thinking Mode**: Gemini 3.0's HIGH thinking level for superior code generation
+- **🎯 Multiple Model Options**: Choose between the newest Gemini 3.0 and stable models
+  - Gemini 3.0 Flash (Preview) - Newest with advanced reasoning - **RECOMMENDED**
+  - Gemini 2.0 Flash (Experimental) - Fast generation with excellent quality
+  - Gemini 1.5 Flash (Stable) - Reliable and fast production-ready model
+  - Gemini 1.5 Pro (Stable) - Balanced performance and stability
 - **🔄 Intelligent Self-Correction**: Automatically detects and fixes Manim syntax errors with up to 5 correction attempts
-- **🎨 Streamlit Web Interface**: Modern, responsive web interface with beautiful cyan-themed UI
+- **⚡ Smart Retry Logic**: Handles rate limits and transient errors with exponential backoff
+- **🎨 Beautiful Streamlit Interface**: Modern, responsive web interface with intuitive controls
 - **📚 3Blue1Brown Style**: Generates animations following the pedagogical approach of 3Blue1Brown
-- **🔧 Auto-Fix System**: Automatically fixes common Manim syntax errors (deprecated methods, axes configuration, etc.)
+- **🔧 Advanced Auto-Fix System**: Automatically fixes common Manim syntax errors (deprecated methods, axes configuration, etc.)
+- **⚙️ Enhanced Generation Settings**: Optimized temperature, top_p, and top_k parameters for better code quality
 - **🔒 Secure API Management**: Uses environment variables for API key security
-- **📝 Script Editor**: View and edit generated scripts with syntax highlighting before re-rendering
+- **📝 Interactive Script Editor**: View and edit generated scripts with syntax highlighting before re-rendering
 - **📥 Download Support**: Download generated animations as MP4 files
 - **⚙️ Configurable Settings**: Adjustable auto-fix options and correction attempt limits
 - **🎯 Real-time Error Analysis**: Detailed error analysis with specific suggestions for manual fixes
@@ -39,6 +48,8 @@ Live link :- https://animation-genai.streamlit.app/
    Create a `.env` file in the project root:
    ```env
    GOOGLE_API_KEY=your_actual_gemini_api_key_here
+   # or
+   GEMINI_API_KEY=your_actual_gemini_api_key_here
    ```
 
 4. **Install FFmpeg** (if not already installed)
@@ -57,6 +68,7 @@ Live link :- https://animation-genai.streamlit.app/
    Navigate to `http://localhost:8501`
 
 3. **Configure settings** (optional)
+   - **Choose AI Model**: Select between Gemini 2.0 Flash (fastest) or Pro (most capable)
    - **Auto-fix syntax errors**: Enabled by default
    - **Max correction attempts**: Set between 1-5 (default: 3)
 
@@ -88,7 +100,7 @@ animation_genai/
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `GOOGLE_API_KEY` | Your Google AI API key from AI Studio | Yes |
+| `GOOGLE_API_KEY` or `GEMINI_API_KEY` | Your Google AI API key from AI Studio | Yes |
 
 ### Streamlit Theme
 
@@ -100,11 +112,27 @@ The app uses a beautiful dark theme with cyan accents configured in `.streamlit/
 
 ### Model Configuration
 
-The application uses `gemini-2.5-pro-preview-06-05` for optimal animation generation. You can check available models by running:
+The application now supports multiple Gemini models for different use cases:
+
+#### Available Models:
+- **Gemini 3.0 Flash (Preview)** - **RECOMMENDED** - Newest with advanced thinking capabilities
+- **Gemini 2.0 Flash (Experimental)** - Best for: Fast generation, real-time experimentation
+- **Gemini 1.5 Flash (Stable)** - Best for: Production use, reliable performance
+- **Gemini 1.5 Pro (Stable)** - Best for: Balanced performance and stability
+
+You can check available models by running:
 
 ```bash
 python check.py
 ```
+
+#### Generation Parameters:
+The app uses optimized generation settings with Gemini 3.0's advanced features:
+- **Temperature**: 0.7 (balanced creativity and consistency)
+- **Top P**: 0.95 (diverse but focused outputs)
+- **Top K**: 40 (quality token selection)
+- **Max Output Tokens**: 8192 (supports complex animations)
+- **Thinking Level**: HIGH (Gemini 3.0's advanced reasoning mode)
 
 ## 📝 Example Prompts
 
@@ -129,15 +157,16 @@ The generated animations include:
 - **⚡ Modern Syntax**: Uses latest Manim Community Edition v0.19.0+ features
 
 ### Self-Correction System
-The app includes an intelligent self-correction system:
+The app includes an intelligent self-correction system powered by Gemini 3.0's advanced reasoning:
 
-1. **First Attempt**: Generates script with enhanced prompts
+1. **First Attempt**: Generates script with enhanced prompts and Gemini 3.0's HIGH thinking mode
 2. **Auto-Fix**: Applies common syntax corrections automatically
 3. **Error Analysis**: If rendering fails, analyzes the specific error type
-4. **AI Correction**: Uses AI to fix the identified issues
+4. **AI Correction**: Uses Gemini 3.0's advanced reasoning to fix identified issues
 5. **Multiple Attempts**: Retries up to 5 times with progressive improvements
 
 ### Settings Configuration
+- **🤖 AI Model Selection**: Choose the best model (Gemini 3.0 Flash recommended for newest features)
 - **🔧 Auto-fix syntax errors**: Toggle automatic fixing of common issues
 - **🔄 Max correction attempts**: Set between 1-5 attempts for error correction
 - **📊 Real-time feedback**: View applied fixes and error analysis in real-time

@@ -1,5 +1,6 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import subprocess
 import os
 import tempfile
@@ -9,6 +10,14 @@ import time
 import uuid
 from dotenv import load_dotenv
 import re
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Configure the page
 st.set_page_config(
@@ -20,24 +29,29 @@ st.set_page_config(
 # Title and description
 st.title("🎬 Manim Animation Generator")
 st.markdown("Generate 2D educational animations in the style of 3Blue1Brown using AI with self-correction")
+st.caption("Powered by Google Gemini 3.0 Flash | Manim Community v0.19.0+")
 
 # Load API key from .env file
 load_dotenv()
-api_key = os.getenv("GOOGLE_API_KEY")
-genai.configure(api_key=api_key)
+api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 
-# Use the more capable Gemini model
-model = genai.GenerativeModel('models/gemini-2.5-pro-preview-06-05')
+# Initialize Gemini client
+client = genai.Client(api_key=api_key) if api_key else None
+
+# Default model - will be overridden by user selection
+DEFAULT_MODEL = 'gemini-3-flash-preview'
+model = None  # Will be initialized based on user selection
 
 def get_enhanced_system_prompt():
-    """Enhanced system prompt with comprehensive Manim guidelines"""
+    """Enhanced system prompt with comprehensive Manim guidelines optimized for Gemini 3.0"""
     return """You are an expert Manim developer specializing in creating educational animations like 3Blue1Brown. You MUST generate syntactically correct Manim Community Edition v0.19.0 code.
 
 🎯 CRITICAL SUCCESS CRITERIA:
-1. Generate WORKING, ERROR-FREE Manim code that renders successfully
+1. Generate WORKING, ERROR-FREE Manim code that renders successfully on the first attempt
 2. Use ONLY modern Manim Community v0.19.0+ syntax
-3. Create engaging, educational content with smooth animations
+3. Create engaging, educational content with smooth, well-paced animations
 4. Follow 3Blue1Brown's pedagogical style and visual aesthetics
+5. Ensure code is clean, efficient, and well-commented for educational purposes
 
 📋 MANDATORY SYNTAX REQUIREMENTS (v0.19.0+):
 
@@ -172,28 +186,91 @@ CRITICAL: Generate a COMPLETE, corrected script that will render successfully.
 Return ONLY the corrected Python code with no markdown formatting.
 The script must start with 'from manim import *' and contain a MainScene class."""
 
-def generate_manim_script(prompt, attempt=1, previous_error=None, previous_script=None):
-    """Generate a Manim script using Gemini API with self-correction"""
-    try:
-        if attempt == 1:
-            # First attempt - use enhanced system prompt
-            system_prompt = get_enhanced_system_prompt()
-            full_prompt = f"{system_prompt}\n\nCreate an educational animation about: {prompt}"
-        else:
-            # Subsequent attempts - use error analysis prompt
-            system_prompt = get_error_analysis_prompt(previous_error, previous_script)
-            full_prompt = f"{system_prompt}\n\nFix the errors and regenerate the script for: {prompt}"
-        
-        response = model.generate_content(full_prompt)
-        script = response.text.strip()
-        
-        # Clean the response - remove markdown code blocks if present
-        script = clean_script_response(script)
-        
-        return script
-    except Exception as e:
-        st.error(f"Error generating script (attempt {attempt}): {str(e)}")
+def generate_manim_script(prompt, attempt=1, previous_error=None, previous_script=None, selected_model=None):
+    """Generate a Manim script using Gemini API with self-correction and retry logic"""
+    max_retries = 3
+    retry_delay = 2  # seconds
+    
+    if not client:
+        st.error("Gemini API client not initialized. Please check your API key.")
         return None
+    
+    for retry in range(max_retries):
+        try:
+            # Initialize model if not already done or if model changed
+            model_name = selected_model if selected_model else DEFAULT_MODEL
+            logger.info(f"Generating script with model: {model_name}, attempt: {attempt}, retry: {retry + 1}/{max_retries}")
+            
+            if attempt == 1:
+                # First attempt - use enhanced system prompt
+                system_prompt = get_enhanced_system_prompt()
+                full_prompt = f"{system_prompt}\n\nCreate an educational animation about: {prompt}"
+            else:
+                # Subsequent attempts - use error analysis prompt
+                system_prompt = get_error_analysis_prompt(previous_error, previous_script)
+                full_prompt = f"{system_prompt}\n\nFix the errors and regenerate the script for: {prompt}"
+            
+            # Create content using new SDK format
+            contents = [
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_text(text=full_prompt),
+                    ],
+                ),
+            ]
+            
+            # Configure generation settings for better quality
+            generate_content_config = types.GenerateContentConfig(
+                temperature=0.7,
+                top_p=0.95,
+                top_k=40,
+                max_output_tokens=8192,
+                # Use high thinking level for better code generation
+                thinking_config=types.ThinkingConfig(
+                    thinking_level="HIGH",
+                ),
+            )
+            
+            logger.info(f"Sending request to Gemini API with model: {model_name}")
+            
+            # Generate content using streaming for better responsiveness
+            response_text = ""
+            for chunk in client.models.generate_content_stream(
+                model=model_name,
+                contents=contents,
+                config=generate_content_config,
+            ):
+                if chunk.text:
+                    response_text += chunk.text
+            
+            script = response_text.strip()
+            
+            # Clean the response - remove markdown code blocks if present
+            script = clean_script_response(script)
+            
+            logger.info(f"Successfully generated script ({len(script)} characters)")
+            return script
+            
+        except Exception as e:
+            logger.error(f"Error generating script (attempt {attempt}, retry {retry + 1}): {str(e)}", exc_info=True)
+            
+            # Check if this is a rate limit or transient error
+            error_msg = str(e).lower()
+            is_retryable = any(keyword in error_msg for keyword in ['rate limit', 'quota', 'timeout', 'unavailable', '429', '503', '500'])
+            
+            if is_retryable and retry < max_retries - 1:
+                logger.info(f"Retryable error detected, waiting {retry_delay} seconds before retry...")
+                st.warning(f"⏳ Rate limit or temporary error. Retrying in {retry_delay} seconds... (Retry {retry + 1}/{max_retries})")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+                continue
+            else:
+                # Non-retryable error or max retries exceeded
+                st.error(f"Error generating script (attempt {attempt}): {str(e)}")
+                return None
+    
+    return None
 
 def clean_script_response(script):
     """Clean the AI response to extract pure Python code"""
@@ -352,7 +429,7 @@ def fix_single_axes_config(axes_string):
     
     return axes_string
 
-def save_and_render_script(script_content, session_id, auto_fix=True, max_attempts=3):
+def save_and_render_script(script_content, session_id, auto_fix=True, max_attempts=3, selected_model=None):
     """Save the script and render it with Manim, with self-correction"""
     
     current_script = script_content
@@ -441,7 +518,8 @@ def save_and_render_script(script_content, session_id, auto_fix=True, max_attemp
                             prompt="", # We'll use the error analysis prompt
                             attempt=attempt + 1,
                             previous_error=result.stderr,
-                            previous_script=current_script
+                            previous_script=current_script,
+                            selected_model=selected_model
                         )
                     
                     if corrected_script:
@@ -490,6 +568,28 @@ def main():
     # Settings in sidebar
     with st.sidebar:
         st.header("⚙️ Settings")
+        
+        # Model selection
+        st.subheader("🤖 AI Model")
+        model_options = {
+            "Gemini 3.0 Flash (Preview) - Newest & Most Advanced": "gemini-3-flash-preview",
+            "Gemini 2.0 Flash (Experimental) - Fast & Efficient": "gemini-2.0-flash-exp",
+            "Gemini 1.5 Flash (Stable) - Reliable & Fast": "gemini-1.5-flash",
+            "Gemini 1.5 Pro (Stable) - Balanced Performance": "gemini-1.5-pro"
+        }
+        selected_model_name = st.selectbox(
+            "Select Gemini Model",
+            options=list(model_options.keys()),
+            index=0,
+            help="Choose the AI model for generating animations. Gemini 3.0 is the newest with advanced thinking capabilities."
+        )
+        selected_model = model_options[selected_model_name]
+        
+        # Display current model info
+        st.info(f"📡 Active Model: `{selected_model}`")
+        
+        st.markdown("---")
+        
         auto_fix_enabled = st.checkbox(
             "🔧 Auto-fix syntax errors", 
             value=True,
@@ -506,6 +606,8 @@ def main():
         
         st.markdown("---")
         st.markdown("**Features:**")
+        st.markdown("• Latest Gemini 3.0 API")
+        st.markdown("• Advanced thinking mode")
         st.markdown("• Enhanced AI prompts")
         st.markdown("• Self-error correction")
         st.markdown("• Modern Manim syntax")
@@ -522,11 +624,28 @@ def main():
             height=100
         )
         
+        # Example prompts
+        with st.expander("💡 Example Prompts"):
+            st.markdown("""
+            **Mathematics:**
+            - "Visualize the Pythagorean theorem with an animated proof"
+            - "Show how sine and cosine waves relate to the unit circle"
+            - "Demonstrate the derivative of x squared using limits"
+            
+            **Physics:**
+            - "Explain Newton's second law with force vectors"
+            - "Animate simple harmonic motion of a pendulum"
+            
+            **Computer Science:**
+            - "Visualize binary search algorithm step by step"
+            - "Show how a sorting algorithm works with colored bars"
+            """)
+        
         generate_button = st.button("🎬 Generate Animation", type="primary")
         
         if generate_button and prompt and api_key:
-            with st.spinner("🤖 Generating enhanced Manim script..."):
-                script = generate_manim_script(prompt)
+            with st.spinner(f"🤖 Generating enhanced Manim script using {selected_model_name}..."):
+                script = generate_manim_script(prompt, selected_model=selected_model)
             
             if script:
                 st.session_state.generated_script = script
@@ -537,7 +656,8 @@ def main():
                         script, 
                         st.session_state.session_id, 
                         auto_fix_enabled,
-                        max_attempts
+                        max_attempts,
+                        selected_model
                     )
                     st.session_state.video_path = video_path
                     st.session_state.generated_script = final_script
@@ -595,7 +715,8 @@ def main():
                         edited_script, 
                         st.session_state.session_id, 
                         rerender_auto_fix,
-                        max_attempts
+                        max_attempts,
+                        selected_model
                     )
                     st.session_state.video_path = video_path
                     st.session_state.generated_script = final_script
