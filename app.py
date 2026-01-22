@@ -28,6 +28,7 @@ st.set_page_config(
 # Title and description
 st.title("🎬 Manim Animation Generator")
 st.markdown("Generate 2D educational animations in the style of 3Blue1Brown using AI with self-correction")
+st.caption("Powered by Google Gemini 2.0 | Manim Community v0.19.0+")
 
 # Load API key from .env file
 load_dotenv()
@@ -559,6 +560,9 @@ def main():
         )
         selected_model = model_options[selected_model_name]
         
+        # Display current model info
+        st.info(f"📡 Active Model: `{selected_model}`")
+        
         st.markdown("---")
         
         auto_fix_enabled = st.checkbox(
@@ -594,6 +598,23 @@ def main():
             placeholder="e.g., Explain the Pythagorean theorem with a visual proof, demonstrate calculus derivatives, show how Fourier transforms work",
             height=100
         )
+        
+        # Example prompts
+        with st.expander("💡 Example Prompts"):
+            st.markdown("""
+            **Mathematics:**
+            - "Visualize the Pythagorean theorem with an animated proof"
+            - "Show how sine and cosine waves relate to the unit circle"
+            - "Demonstrate the derivative of x squared using limits"
+            
+            **Physics:**
+            - "Explain Newton's second law with force vectors"
+            - "Animate simple harmonic motion of a pendulum"
+            
+            **Computer Science:**
+            - "Visualize binary search algorithm step by step"
+            - "Show how a sorting algorithm works with colored bars"
+            """)
         
         generate_button = st.button("🎬 Generate Animation", type="primary")
         
