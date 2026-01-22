@@ -213,23 +213,23 @@ def generate_manim_script(prompt, attempt=1, previous_error=None, previous_scrip
                 'max_output_tokens': 8192,
             }
             
-            # Configure safety settings to allow educational content
+            # Configure safety settings to allow educational content while maintaining safety
             safety_settings = [
                 {
                     "category": "HARM_CATEGORY_HARASSMENT",
-                    "threshold": "BLOCK_NONE"
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
                 },
                 {
                     "category": "HARM_CATEGORY_HATE_SPEECH",
-                    "threshold": "BLOCK_NONE"
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
                 },
                 {
                     "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                    "threshold": "BLOCK_NONE"
+                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
                 },
                 {
                     "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                    "threshold": "BLOCK_NONE"
+                    "threshold": "BLOCK_ONLY_HIGH"
                 }
             ]
             
