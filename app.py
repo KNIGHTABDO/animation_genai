@@ -26,8 +26,9 @@ load_dotenv()
 api_key = os.getenv("GOOGLE_API_KEY")
 genai.configure(api_key=api_key)
 
-# Use the more capable Gemini model
-model = genai.GenerativeModel('models/gemini-2.5-pro-preview-06-05')
+# Default model - will be overridden by user selection
+DEFAULT_MODEL = 'gemini-2.0-flash-exp'
+model = None  # Will be initialized based on user selection
 
 def get_enhanced_system_prompt():
     """Enhanced system prompt with comprehensive Manim guidelines"""
@@ -172,9 +173,15 @@ CRITICAL: Generate a COMPLETE, corrected script that will render successfully.
 Return ONLY the corrected Python code with no markdown formatting.
 The script must start with 'from manim import *' and contain a MainScene class."""
 
-def generate_manim_script(prompt, attempt=1, previous_error=None, previous_script=None):
+def generate_manim_script(prompt, attempt=1, previous_error=None, previous_script=None, selected_model=None):
     """Generate a Manim script using Gemini API with self-correction"""
     try:
+        # Initialize model if not already done or if model changed
+        if selected_model:
+            current_model = genai.GenerativeModel(selected_model)
+        else:
+            current_model = genai.GenerativeModel(DEFAULT_MODEL)
+        
         if attempt == 1:
             # First attempt - use enhanced system prompt
             system_prompt = get_enhanced_system_prompt()
@@ -184,7 +191,18 @@ def generate_manim_script(prompt, attempt=1, previous_error=None, previous_scrip
             system_prompt = get_error_analysis_prompt(previous_error, previous_script)
             full_prompt = f"{system_prompt}\n\nFix the errors and regenerate the script for: {prompt}"
         
-        response = model.generate_content(full_prompt)
+        # Configure generation settings for better quality
+        generation_config = {
+            'temperature': 0.7,
+            'top_p': 0.95,
+            'top_k': 40,
+            'max_output_tokens': 8192,
+        }
+        
+        response = current_model.generate_content(
+            full_prompt,
+            generation_config=generation_config
+        )
         script = response.text.strip()
         
         # Clean the response - remove markdown code blocks if present
@@ -352,7 +370,7 @@ def fix_single_axes_config(axes_string):
     
     return axes_string
 
-def save_and_render_script(script_content, session_id, auto_fix=True, max_attempts=3):
+def save_and_render_script(script_content, session_id, auto_fix=True, max_attempts=3, selected_model=None):
     """Save the script and render it with Manim, with self-correction"""
     
     current_script = script_content
@@ -441,7 +459,8 @@ def save_and_render_script(script_content, session_id, auto_fix=True, max_attemp
                             prompt="", # We'll use the error analysis prompt
                             attempt=attempt + 1,
                             previous_error=result.stderr,
-                            previous_script=current_script
+                            previous_script=current_script,
+                            selected_model=selected_model
                         )
                     
                     if corrected_script:
@@ -490,6 +509,25 @@ def main():
     # Settings in sidebar
     with st.sidebar:
         st.header("⚙️ Settings")
+        
+        # Model selection
+        st.subheader("🤖 AI Model")
+        model_options = {
+            "Gemini 2.0 Flash (Experimental) - Fast & Efficient": "gemini-2.0-flash-exp",
+            "Gemini 2.0 Pro (Experimental) - Most Capable": "gemini-2.0-pro-exp",
+            "Gemini 1.5 Flash (Stable) - Reliable & Fast": "gemini-1.5-flash",
+            "Gemini 1.5 Pro (Stable) - Balanced Performance": "gemini-1.5-pro"
+        }
+        selected_model_name = st.selectbox(
+            "Select Gemini Model",
+            options=list(model_options.keys()),
+            index=0,
+            help="Choose the AI model for generating animations. Flash models are faster, Pro models are more capable."
+        )
+        selected_model = model_options[selected_model_name]
+        
+        st.markdown("---")
+        
         auto_fix_enabled = st.checkbox(
             "🔧 Auto-fix syntax errors", 
             value=True,
@@ -506,6 +544,8 @@ def main():
         
         st.markdown("---")
         st.markdown("**Features:**")
+        st.markdown("• Latest Gemini 2.0 API")
+        st.markdown("• Model selection options")
         st.markdown("• Enhanced AI prompts")
         st.markdown("• Self-error correction")
         st.markdown("• Modern Manim syntax")
@@ -525,8 +565,8 @@ def main():
         generate_button = st.button("🎬 Generate Animation", type="primary")
         
         if generate_button and prompt and api_key:
-            with st.spinner("🤖 Generating enhanced Manim script..."):
-                script = generate_manim_script(prompt)
+            with st.spinner(f"🤖 Generating enhanced Manim script using {selected_model_name}..."):
+                script = generate_manim_script(prompt, selected_model=selected_model)
             
             if script:
                 st.session_state.generated_script = script
@@ -537,7 +577,8 @@ def main():
                         script, 
                         st.session_state.session_id, 
                         auto_fix_enabled,
-                        max_attempts
+                        max_attempts,
+                        selected_model
                     )
                     st.session_state.video_path = video_path
                     st.session_state.generated_script = final_script
@@ -595,7 +636,8 @@ def main():
                         edited_script, 
                         st.session_state.session_id, 
                         rerender_auto_fix,
-                        max_attempts
+                        max_attempts,
+                        selected_model
                     )
                     st.session_state.video_path = video_path
                     st.session_state.generated_script = final_script
