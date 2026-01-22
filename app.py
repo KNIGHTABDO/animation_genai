@@ -9,6 +9,14 @@ import time
 import uuid
 from dotenv import load_dotenv
 import re
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # Configure the page
 st.set_page_config(
@@ -31,14 +39,15 @@ DEFAULT_MODEL = 'gemini-2.0-flash-exp'
 model = None  # Will be initialized based on user selection
 
 def get_enhanced_system_prompt():
-    """Enhanced system prompt with comprehensive Manim guidelines"""
+    """Enhanced system prompt with comprehensive Manim guidelines optimized for Gemini 2.0"""
     return """You are an expert Manim developer specializing in creating educational animations like 3Blue1Brown. You MUST generate syntactically correct Manim Community Edition v0.19.0 code.
 
 🎯 CRITICAL SUCCESS CRITERIA:
-1. Generate WORKING, ERROR-FREE Manim code that renders successfully
+1. Generate WORKING, ERROR-FREE Manim code that renders successfully on the first attempt
 2. Use ONLY modern Manim Community v0.19.0+ syntax
-3. Create engaging, educational content with smooth animations
+3. Create engaging, educational content with smooth, well-paced animations
 4. Follow 3Blue1Brown's pedagogical style and visual aesthetics
+5. Ensure code is clean, efficient, and well-commented for educational purposes
 
 📋 MANDATORY SYNTAX REQUIREMENTS (v0.19.0+):
 
@@ -177,10 +186,10 @@ def generate_manim_script(prompt, attempt=1, previous_error=None, previous_scrip
     """Generate a Manim script using Gemini API with self-correction"""
     try:
         # Initialize model if not already done or if model changed
-        if selected_model:
-            current_model = genai.GenerativeModel(selected_model)
-        else:
-            current_model = genai.GenerativeModel(DEFAULT_MODEL)
+        model_name = selected_model if selected_model else DEFAULT_MODEL
+        logger.info(f"Generating script with model: {model_name}, attempt: {attempt}")
+        
+        current_model = genai.GenerativeModel(model_name)
         
         if attempt == 1:
             # First attempt - use enhanced system prompt
@@ -199,17 +208,41 @@ def generate_manim_script(prompt, attempt=1, previous_error=None, previous_scrip
             'max_output_tokens': 8192,
         }
         
+        # Configure safety settings to allow educational content
+        safety_settings = [
+            {
+                "category": "HARM_CATEGORY_HARASSMENT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_HATE_SPEECH",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                "threshold": "BLOCK_NONE"
+            },
+            {
+                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                "threshold": "BLOCK_NONE"
+            }
+        ]
+        
+        logger.info(f"Sending request to Gemini API with config: {generation_config}")
         response = current_model.generate_content(
             full_prompt,
-            generation_config=generation_config
+            generation_config=generation_config,
+            safety_settings=safety_settings
         )
         script = response.text.strip()
         
         # Clean the response - remove markdown code blocks if present
         script = clean_script_response(script)
         
+        logger.info(f"Successfully generated script ({len(script)} characters)")
         return script
     except Exception as e:
+        logger.error(f"Error generating script (attempt {attempt}): {str(e)}", exc_info=True)
         st.error(f"Error generating script (attempt {attempt}): {str(e)}")
         return None
 
