@@ -13,6 +13,7 @@ Live link :- https://animation-genai.streamlit.app/
   - Gemini 1.5 Flash (Stable) - Reliable and fast production-ready model
   - Gemini 1.5 Pro (Stable) - Balanced performance and stability
 - **🔄 Intelligent Self-Correction**: Automatically detects and fixes Manim syntax errors with up to 5 correction attempts
+- **⚡ Smart Retry Logic**: Handles rate limits and transient errors with exponential backoff
 - **🎨 Beautiful Streamlit Interface**: Modern, responsive web interface with intuitive controls
 - **📚 3Blue1Brown Style**: Generates animations following the pedagogical approach of 3Blue1Brown
 - **🔧 Advanced Auto-Fix System**: Automatically fixes common Manim syntax errors (deprecated methods, axes configuration, etc.)

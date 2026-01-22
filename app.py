@@ -184,68 +184,88 @@ Return ONLY the corrected Python code with no markdown formatting.
 The script must start with 'from manim import *' and contain a MainScene class."""
 
 def generate_manim_script(prompt, attempt=1, previous_error=None, previous_script=None, selected_model=None):
-    """Generate a Manim script using Gemini API with self-correction"""
-    try:
-        # Initialize model if not already done or if model changed
-        model_name = selected_model if selected_model else DEFAULT_MODEL
-        logger.info(f"Generating script with model: {model_name}, attempt: {attempt}")
-        
-        current_model = genai.GenerativeModel(model_name)
-        
-        if attempt == 1:
-            # First attempt - use enhanced system prompt
-            system_prompt = get_enhanced_system_prompt()
-            full_prompt = f"{system_prompt}\n\nCreate an educational animation about: {prompt}"
-        else:
-            # Subsequent attempts - use error analysis prompt
-            system_prompt = get_error_analysis_prompt(previous_error, previous_script)
-            full_prompt = f"{system_prompt}\n\nFix the errors and regenerate the script for: {prompt}"
-        
-        # Configure generation settings for better quality
-        generation_config = {
-            'temperature': 0.7,
-            'top_p': 0.95,
-            'top_k': 40,
-            'max_output_tokens': 8192,
-        }
-        
-        # Configure safety settings to allow educational content
-        safety_settings = [
-            {
-                "category": "HARM_CATEGORY_HARASSMENT",
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_HATE_SPEECH",
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                "threshold": "BLOCK_NONE"
-            },
-            {
-                "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                "threshold": "BLOCK_NONE"
+    """Generate a Manim script using Gemini API with self-correction and retry logic"""
+    max_retries = 3
+    retry_delay = 2  # seconds
+    
+    for retry in range(max_retries):
+        try:
+            # Initialize model if not already done or if model changed
+            model_name = selected_model if selected_model else DEFAULT_MODEL
+            logger.info(f"Generating script with model: {model_name}, attempt: {attempt}, retry: {retry + 1}/{max_retries}")
+            
+            current_model = genai.GenerativeModel(model_name)
+            
+            if attempt == 1:
+                # First attempt - use enhanced system prompt
+                system_prompt = get_enhanced_system_prompt()
+                full_prompt = f"{system_prompt}\n\nCreate an educational animation about: {prompt}"
+            else:
+                # Subsequent attempts - use error analysis prompt
+                system_prompt = get_error_analysis_prompt(previous_error, previous_script)
+                full_prompt = f"{system_prompt}\n\nFix the errors and regenerate the script for: {prompt}"
+            
+            # Configure generation settings for better quality
+            generation_config = {
+                'temperature': 0.7,
+                'top_p': 0.95,
+                'top_k': 40,
+                'max_output_tokens': 8192,
             }
-        ]
-        
-        logger.info(f"Sending request to Gemini API with config: {generation_config}")
-        response = current_model.generate_content(
-            full_prompt,
-            generation_config=generation_config,
-            safety_settings=safety_settings
-        )
-        script = response.text.strip()
-        
-        # Clean the response - remove markdown code blocks if present
-        script = clean_script_response(script)
-        
-        logger.info(f"Successfully generated script ({len(script)} characters)")
-        return script
-    except Exception as e:
-        logger.error(f"Error generating script (attempt {attempt}): {str(e)}", exc_info=True)
-        st.error(f"Error generating script (attempt {attempt}): {str(e)}")
-        return None
+            
+            # Configure safety settings to allow educational content
+            safety_settings = [
+                {
+                    "category": "HARM_CATEGORY_HARASSMENT",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_HATE_SPEECH",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
+                    "threshold": "BLOCK_NONE"
+                },
+                {
+                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
+                    "threshold": "BLOCK_NONE"
+                }
+            ]
+            
+            logger.info(f"Sending request to Gemini API with config: {generation_config}")
+            response = current_model.generate_content(
+                full_prompt,
+                generation_config=generation_config,
+                safety_settings=safety_settings
+            )
+            script = response.text.strip()
+            
+            # Clean the response - remove markdown code blocks if present
+            script = clean_script_response(script)
+            
+            logger.info(f"Successfully generated script ({len(script)} characters)")
+            return script
+            
+        except Exception as e:
+            logger.error(f"Error generating script (attempt {attempt}, retry {retry + 1}): {str(e)}", exc_info=True)
+            
+            # Check if this is a rate limit or transient error
+            error_msg = str(e).lower()
+            is_retryable = any(keyword in error_msg for keyword in ['rate limit', 'quota', 'timeout', 'unavailable', '429', '503', '500'])
+            
+            if is_retryable and retry < max_retries - 1:
+                logger.info(f"Retryable error detected, waiting {retry_delay} seconds before retry...")
+                st.warning(f"⏳ Rate limit or temporary error. Retrying in {retry_delay} seconds... (Retry {retry + 1}/{max_retries})")
+                time.sleep(retry_delay)
+                retry_delay *= 2  # Exponential backoff
+                continue
+            else:
+                # Non-retryable error or max retries exceeded
+                st.error(f"Error generating script (attempt {attempt}): {str(e)}")
+                return None
+    
+    return None
 
 def clean_script_response(script):
     """Clean the AI response to extract pure Python code"""
