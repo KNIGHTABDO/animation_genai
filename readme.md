@@ -1,15 +1,16 @@
 # Animation GenAI 🎬✨
 
-A powerful AI-driven tool that generates educational animations using Google's latest Gemini 2.0 AI models and the Manim library. Create beautiful mathematical and educational animations in the style of 3Blue1Brown by simply describing what you want to animate!
+A powerful AI-driven tool that generates educational animations using Google's newest Gemini 3.0 AI model and the Manim library. Create beautiful mathematical and educational animations in the style of 3Blue1Brown by simply describing what you want to animate!
 
 Live link :- https://animation-genai.streamlit.app/
 
 ## 🚀 Features
 
-- **🤖 Latest Gemini 2.0 API**: Powered by Google's cutting-edge Gemini 2.0 Flash and Pro models
-- **🎯 Multiple Model Options**: Choose between Flash (fast & efficient) and Pro (most capable) models
-  - Gemini 2.0 Flash (Experimental) - Fastest generation with excellent quality
-  - Gemini 2.0 Pro (Experimental) - Most capable for complex animations
+- **🤖 Latest Gemini 3.0 API**: Powered by Google's cutting-edge Gemini 3.0 Flash with advanced thinking capabilities
+- **🧠 Advanced Thinking Mode**: Gemini 3.0's HIGH thinking level for superior code generation
+- **🎯 Multiple Model Options**: Choose between the newest Gemini 3.0 and stable models
+  - Gemini 3.0 Flash (Preview) - Newest with advanced reasoning - **RECOMMENDED**
+  - Gemini 2.0 Flash (Experimental) - Fast generation with excellent quality
   - Gemini 1.5 Flash (Stable) - Reliable and fast production-ready model
   - Gemini 1.5 Pro (Stable) - Balanced performance and stability
 - **🔄 Intelligent Self-Correction**: Automatically detects and fixes Manim syntax errors with up to 5 correction attempts
@@ -47,6 +48,8 @@ Live link :- https://animation-genai.streamlit.app/
    Create a `.env` file in the project root:
    ```env
    GOOGLE_API_KEY=your_actual_gemini_api_key_here
+   # or
+   GEMINI_API_KEY=your_actual_gemini_api_key_here
    ```
 
 4. **Install FFmpeg** (if not already installed)
@@ -97,7 +100,7 @@ animation_genai/
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `GOOGLE_API_KEY` | Your Google AI API key from AI Studio | Yes |
+| `GOOGLE_API_KEY` or `GEMINI_API_KEY` | Your Google AI API key from AI Studio | Yes |
 
 ### Streamlit Theme
 
@@ -112,8 +115,8 @@ The app uses a beautiful dark theme with cyan accents configured in `.streamlit/
 The application now supports multiple Gemini models for different use cases:
 
 #### Available Models:
+- **Gemini 3.0 Flash (Preview)** - **RECOMMENDED** - Newest with advanced thinking capabilities
 - **Gemini 2.0 Flash (Experimental)** - Best for: Fast generation, real-time experimentation
-- **Gemini 2.0 Pro (Experimental)** - Best for: Complex animations, highest quality output
 - **Gemini 1.5 Flash (Stable)** - Best for: Production use, reliable performance
 - **Gemini 1.5 Pro (Stable)** - Best for: Balanced performance and stability
 
@@ -124,11 +127,12 @@ python check.py
 ```
 
 #### Generation Parameters:
-The app uses optimized generation settings:
+The app uses optimized generation settings with Gemini 3.0's advanced features:
 - **Temperature**: 0.7 (balanced creativity and consistency)
 - **Top P**: 0.95 (diverse but focused outputs)
 - **Top K**: 40 (quality token selection)
 - **Max Output Tokens**: 8192 (supports complex animations)
+- **Thinking Level**: HIGH (Gemini 3.0's advanced reasoning mode)
 
 ## 📝 Example Prompts
 
@@ -153,16 +157,16 @@ The generated animations include:
 - **⚡ Modern Syntax**: Uses latest Manim Community Edition v0.19.0+ features
 
 ### Self-Correction System
-The app includes an intelligent self-correction system with improved AI-powered debugging:
+The app includes an intelligent self-correction system powered by Gemini 3.0's advanced reasoning:
 
-1. **First Attempt**: Generates script with enhanced prompts and optimized generation parameters
+1. **First Attempt**: Generates script with enhanced prompts and Gemini 3.0's HIGH thinking mode
 2. **Auto-Fix**: Applies common syntax corrections automatically
 3. **Error Analysis**: If rendering fails, analyzes the specific error type
-4. **AI Correction**: Uses the selected Gemini model to fix identified issues
+4. **AI Correction**: Uses Gemini 3.0's advanced reasoning to fix identified issues
 5. **Multiple Attempts**: Retries up to 5 times with progressive improvements
 
 ### Settings Configuration
-- **🤖 AI Model Selection**: Choose the best model for your needs (Flash for speed, Pro for quality)
+- **🤖 AI Model Selection**: Choose the best model (Gemini 3.0 Flash recommended for newest features)
 - **🔧 Auto-fix syntax errors**: Toggle automatic fixing of common issues
 - **🔄 Max correction attempts**: Set between 1-5 attempts for error correction
 - **📊 Real-time feedback**: View applied fixes and error analysis in real-time

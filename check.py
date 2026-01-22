@@ -1,35 +1,37 @@
-import google.generativeai as genai
+from google import genai
 import os
 from dotenv import load_dotenv
 
 # Load API key
 load_dotenv()
-api_key = os.getenv("GOOGLE_API_KEY")
+api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
 
 if not api_key:
-    print("❌ Error: GOOGLE_API_KEY not found in .env file")
+    print("❌ Error: GOOGLE_API_KEY or GEMINI_API_KEY not found in .env file")
     exit(1)
 
-genai.configure(api_key=api_key)
+client = genai.Client(api_key=api_key)
 
 print("🔍 Available Gemini Models:\n")
 print("=" * 80)
 
-models = genai.list_models()
-for model in models:
-    # Only show generative models
-    if 'generateContent' in model.supported_generation_methods:
+try:
+    models = client.models.list()
+    for model in models:
         print(f"\n📦 Model: {model.name}")
-        print(f"   Display Name: {model.display_name}")
-        print(f"   Description: {model.description}")
-        print(f"   Input Token Limit: {model.input_token_limit:,}")
-        print(f"   Output Token Limit: {model.output_token_limit:,}")
-        print(f"   Supported Methods: {', '.join(model.supported_generation_methods)}")
+        if hasattr(model, 'display_name'):
+            print(f"   Display Name: {model.display_name}")
+        if hasattr(model, 'description'):
+            print(f"   Description: {model.description}")
         print("-" * 80)
+except Exception as e:
+    print(f"Error listing models: {e}")
+    print("\nNote: The new google-genai SDK may have different model listing capabilities.")
 
 print("\n✅ Recommended Models for Animation GenAI:")
-print("   • gemini-2.0-flash-exp - Fast and efficient (RECOMMENDED)")
-print("   • gemini-2.0-pro-exp - Most capable for complex animations")
+print("   • gemini-3-flash-preview - Newest with advanced thinking (RECOMMENDED)")
+print("   • gemini-2.0-flash-exp - Fast and efficient")
 print("   • gemini-1.5-flash - Stable and reliable")
 print("   • gemini-1.5-pro - Balanced performance")
+
 

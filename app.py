@@ -1,5 +1,6 @@
 import streamlit as st
-import google.generativeai as genai
+from google import genai
+from google.genai import types
 import subprocess
 import os
 import tempfile
@@ -28,19 +29,21 @@ st.set_page_config(
 # Title and description
 st.title("🎬 Manim Animation Generator")
 st.markdown("Generate 2D educational animations in the style of 3Blue1Brown using AI with self-correction")
-st.caption("Powered by Google Gemini 2.0 | Manim Community v0.19.0+")
+st.caption("Powered by Google Gemini 3.0 Flash | Manim Community v0.19.0+")
 
 # Load API key from .env file
 load_dotenv()
-api_key = os.getenv("GOOGLE_API_KEY")
-genai.configure(api_key=api_key)
+api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+
+# Initialize Gemini client
+client = genai.Client(api_key=api_key) if api_key else None
 
 # Default model - will be overridden by user selection
-DEFAULT_MODEL = 'gemini-2.0-flash-exp'
+DEFAULT_MODEL = 'gemini-3-flash-preview'
 model = None  # Will be initialized based on user selection
 
 def get_enhanced_system_prompt():
-    """Enhanced system prompt with comprehensive Manim guidelines optimized for Gemini 2.0"""
+    """Enhanced system prompt with comprehensive Manim guidelines optimized for Gemini 3.0"""
     return """You are an expert Manim developer specializing in creating educational animations like 3Blue1Brown. You MUST generate syntactically correct Manim Community Edition v0.19.0 code.
 
 🎯 CRITICAL SUCCESS CRITERIA:
@@ -188,13 +191,15 @@ def generate_manim_script(prompt, attempt=1, previous_error=None, previous_scrip
     max_retries = 3
     retry_delay = 2  # seconds
     
+    if not client:
+        st.error("Gemini API client not initialized. Please check your API key.")
+        return None
+    
     for retry in range(max_retries):
         try:
             # Initialize model if not already done or if model changed
             model_name = selected_model if selected_model else DEFAULT_MODEL
             logger.info(f"Generating script with model: {model_name}, attempt: {attempt}, retry: {retry + 1}/{max_retries}")
-            
-            current_model = genai.GenerativeModel(model_name)
             
             if attempt == 1:
                 # First attempt - use enhanced system prompt
@@ -205,41 +210,41 @@ def generate_manim_script(prompt, attempt=1, previous_error=None, previous_scrip
                 system_prompt = get_error_analysis_prompt(previous_error, previous_script)
                 full_prompt = f"{system_prompt}\n\nFix the errors and regenerate the script for: {prompt}"
             
-            # Configure generation settings for better quality
-            generation_config = {
-                'temperature': 0.7,
-                'top_p': 0.95,
-                'top_k': 40,
-                'max_output_tokens': 8192,
-            }
-            
-            # Configure safety settings to allow educational content while maintaining safety
-            safety_settings = [
-                {
-                    "category": "HARM_CATEGORY_HARASSMENT",
-                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-                },
-                {
-                    "category": "HARM_CATEGORY_HATE_SPEECH",
-                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-                },
-                {
-                    "category": "HARM_CATEGORY_SEXUALLY_EXPLICIT",
-                    "threshold": "BLOCK_MEDIUM_AND_ABOVE"
-                },
-                {
-                    "category": "HARM_CATEGORY_DANGEROUS_CONTENT",
-                    "threshold": "BLOCK_ONLY_HIGH"
-                }
+            # Create content using new SDK format
+            contents = [
+                types.Content(
+                    role="user",
+                    parts=[
+                        types.Part.from_text(text=full_prompt),
+                    ],
+                ),
             ]
             
-            logger.info(f"Sending request to Gemini API with config: {generation_config}")
-            response = current_model.generate_content(
-                full_prompt,
-                generation_config=generation_config,
-                safety_settings=safety_settings
+            # Configure generation settings for better quality
+            generate_content_config = types.GenerateContentConfig(
+                temperature=0.7,
+                top_p=0.95,
+                top_k=40,
+                max_output_tokens=8192,
+                # Use high thinking level for better code generation
+                thinking_config=types.ThinkingConfig(
+                    thinking_level="HIGH",
+                ),
             )
-            script = response.text.strip()
+            
+            logger.info(f"Sending request to Gemini API with model: {model_name}")
+            
+            # Generate content using streaming for better responsiveness
+            response_text = ""
+            for chunk in client.models.generate_content_stream(
+                model=model_name,
+                contents=contents,
+                config=generate_content_config,
+            ):
+                if chunk.text:
+                    response_text += chunk.text
+            
+            script = response_text.strip()
             
             # Clean the response - remove markdown code blocks if present
             script = clean_script_response(script)
@@ -567,8 +572,8 @@ def main():
         # Model selection
         st.subheader("🤖 AI Model")
         model_options = {
+            "Gemini 3.0 Flash (Preview) - Newest & Most Advanced": "gemini-3-flash-preview",
             "Gemini 2.0 Flash (Experimental) - Fast & Efficient": "gemini-2.0-flash-exp",
-            "Gemini 2.0 Pro (Experimental) - Most Capable": "gemini-2.0-pro-exp",
             "Gemini 1.5 Flash (Stable) - Reliable & Fast": "gemini-1.5-flash",
             "Gemini 1.5 Pro (Stable) - Balanced Performance": "gemini-1.5-pro"
         }
@@ -576,7 +581,7 @@ def main():
             "Select Gemini Model",
             options=list(model_options.keys()),
             index=0,
-            help="Choose the AI model for generating animations. Flash models are faster, Pro models are more capable."
+            help="Choose the AI model for generating animations. Gemini 3.0 is the newest with advanced thinking capabilities."
         )
         selected_model = model_options[selected_model_name]
         
@@ -601,8 +606,8 @@ def main():
         
         st.markdown("---")
         st.markdown("**Features:**")
-        st.markdown("• Latest Gemini 2.0 API")
-        st.markdown("• Model selection options")
+        st.markdown("• Latest Gemini 3.0 API")
+        st.markdown("• Advanced thinking mode")
         st.markdown("• Enhanced AI prompts")
         st.markdown("• Self-error correction")
         st.markdown("• Modern Manim syntax")
